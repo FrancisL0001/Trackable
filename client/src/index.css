@@ -1,0 +1,209 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================================
+   Design tokens. Colors are CSS variables so [data-theme] toggles the whole UI.
+   ============================================================================ */
+@layer base {
+  :root {
+    --primary: #0d9488;
+    --primary-strong: #0f766e;
+    --primary-soft: #ccfbf1;
+    --accent: #f97316;
+    --accent-soft: #ffedd5;
+
+    --danger: #dc2626;
+    --danger-soft: #fee2e2;
+    --warning: #b45309;
+    --warning-soft: #fef3c7;
+    --success: #16a34a;
+    --success-soft: #dcfce7;
+
+    --bg: #f8fafc;
+    --bg-elevated: #ffffff;
+    --surface: #ffffff;
+    --surface-2: #f1f5f9;
+    --border: #e2e8f0;
+    --text: #0f172a;
+    --text-muted: #475569;
+    --text-faint: #94a3b8;
+
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-lg: 18px;
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+    --shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+  }
+
+  [data-theme="dark"] {
+    --primary: #2dd4bf;
+    --primary-strong: #5eead4;
+    --primary-soft: #134e4a;
+    --accent: #fb923c;
+    --accent-soft: #431407;
+
+    --danger: #f87171;
+    --danger-soft: #450a0a;
+    --warning: #fbbf24;
+    --warning-soft: #422006;
+    --success: #4ade80;
+    --success-soft: #052e16;
+
+    --bg: #0b1120;
+    --bg-elevated: #111827;
+    --surface: #111827;
+    --surface-2: #1e293b;
+    --border: #1f2a3c;
+    --text: #f1f5f9;
+    --text-muted: #94a3b8;
+    --text-faint: #64748b;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  }
+
+  html,
+  body,
+  #root {
+    @apply h-full m-0;
+  }
+  body {
+    @apply bg-bg text-content font-sans antialiased;
+    font-size: 16px;
+    line-height: 1.55;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-bold tracking-tight;
+    line-height: 1.2;
+  }
+  :focus-visible {
+    outline: 3px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+/* ============================================================================
+   Reusable component classes — keep markup readable for repeated patterns.
+   ============================================================================ */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 rounded-sm font-semibold
+      text-[0.95rem] cursor-pointer transition-colors bg-surface-2 text-content
+      border border-transparent disabled:opacity-60 disabled:cursor-not-allowed;
+    min-height: 44px;
+  }
+  .btn:hover {
+    @apply bg-border;
+  }
+  .btn-primary {
+    @apply bg-primary text-white border-transparent;
+  }
+  .btn-primary:hover {
+    @apply bg-primary-strong;
+  }
+  .btn-accent {
+    @apply bg-accent text-white;
+  }
+  .btn-ghost {
+    @apply bg-transparent;
+  }
+  .btn-ghost:hover {
+    @apply bg-surface-2;
+  }
+  .btn-danger {
+    @apply bg-transparent text-danger border-border;
+  }
+  .btn-danger:hover {
+    @apply bg-danger-soft;
+  }
+  .btn-sm {
+    @apply px-3 text-[0.85rem];
+    min-height: 34px;
+  }
+
+  .card {
+    @apply bg-surface border border-border rounded shadow-sm;
+  }
+
+  .input,
+  .select,
+  .textarea {
+    @apply w-full px-3 py-2.5 text-base text-content bg-bg-elevated border border-border
+      rounded-sm transition-colors;
+  }
+  .input:focus,
+  .select:focus,
+  .textarea:focus {
+    @apply border-primary outline-none;
+  }
+  .textarea {
+    @apply resize-y;
+    min-height: 90px;
+  }
+  .field-label {
+    @apply text-[0.85rem] font-semibold text-content-muted;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[0.72rem]
+      font-semibold capitalize bg-surface-2 text-content-muted;
+  }
+  .badge-primary {
+    @apply bg-primary-soft text-primary-strong;
+  }
+  .badge-accent {
+    @apply bg-accent-soft text-accent;
+  }
+  .badge-danger {
+    @apply bg-danger-soft text-danger;
+  }
+  .badge-warning {
+    @apply bg-warning-soft text-warning;
+  }
+  .badge-success {
+    @apply bg-success-soft text-success;
+  }
+
+  .icon-btn {
+    @apply inline-grid place-items-center w-11 h-11 rounded-sm border border-border
+      bg-surface text-content-muted cursor-pointer transition-colors;
+  }
+  .icon-btn:hover {
+    @apply bg-surface-2 text-content;
+  }
+
+  .nav-link {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-sm text-content-muted font-semibold
+      text-[0.95rem] cursor-pointer transition-colors no-underline;
+  }
+  .nav-link:hover {
+    @apply bg-surface-2 text-content no-underline;
+  }
+  .nav-link.active {
+    @apply bg-primary-soft text-primary-strong;
+  }
+}
+
+@layer utilities {
+  .spin {
+    width: 22px;
+    height: 22px;
+    border: 3px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    .spin {
+      animation-duration: 0.001ms !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+}
