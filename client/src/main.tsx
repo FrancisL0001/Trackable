@@ -7,6 +7,7 @@ import { App } from "./App";
 import { AuthProvider } from "./auth/AuthContext";
 import { ThemeProvider } from "./theme/ThemeContext";
 import { ToastProvider } from "./components/Toast";
+import { Analytics } from "@vercel/analytics/react"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,6 +23,7 @@ createRoot(document.getElementById("root")!).render(
           <AuthProvider>
             <BrowserRouter>
               <App />
+              <Analytics />
             </BrowserRouter>
           </AuthProvider>
         </ToastProvider>
