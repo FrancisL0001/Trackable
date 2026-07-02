@@ -51,6 +51,7 @@ describe("AuthContext", () => {
         email: "a@b.edu",
         full_name: "A",
         timezone: "UTC",
+        reminder_soon_days: 7,
         created_at: "2026-01-01T00:00:00Z",
       },
     });
@@ -82,6 +83,7 @@ describe("AuthContext", () => {
       email: "restored@b.edu",
       full_name: "R",
       timezone: "UTC",
+      reminder_soon_days: 7,
       created_at: "2026-01-01T00:00:00Z",
     });
 

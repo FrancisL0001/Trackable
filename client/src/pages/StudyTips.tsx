@@ -2,7 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { dashboardApi } from "../api/endpoints";
 import { Icon } from "../components/Icon";
-import { CenterSpinner, ErrorState, PageHeader } from "../components/ui";
+import { ErrorState, PageHeader, PageSkeleton } from "../components/ui";
 
 export function StudyTips() {
   const { data, isLoading, isError } = useQuery({
@@ -10,7 +10,7 @@ export function StudyTips() {
     queryFn: dashboardApi.studyTips,
   });
 
-  if (isLoading) return <CenterSpinner label="Gathering tips…" />;
+  if (isLoading) return <PageSkeleton />;
   if (isError || !data) return <ErrorState />;
 
   return (
@@ -21,15 +21,15 @@ export function StudyTips() {
       />
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
         {data.map((tip, i) => (
-          <div key={i} className="card p-5 flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="w-[38px] h-[38px] rounded-[10px] grid place-items-center bg-accent-soft text-accent">
-                <Icon name="bulb" size={20} />
+          <div key={i} className="card card-hover p-5 flex flex-col gap-2.5">
+            <div className="flex items-center justify-between gap-3">
+              <span className="w-10 h-10 rounded-[12px] grid place-items-center bg-accent-soft text-accent">
+                <Icon name="sparkles" size={19} />
               </span>
               <span className="badge">{tip.category}</span>
             </div>
-            <strong className="text-[1.05rem]">{tip.title}</strong>
-            <p className="text-content-muted m-0">{tip.body}</p>
+            <strong className="text-[1.05rem] leading-snug">{tip.title}</strong>
+            <p className="text-content-muted m-0 text-[0.95rem]">{tip.body}</p>
           </div>
         ))}
       </div>

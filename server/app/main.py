@@ -14,12 +14,19 @@ from app.core.config import settings
 from app.core.database import init_db
 from app.core.errors import TrackableError
 from app.core.rate_limit import limiter
+from app.core.scheduler import scheduler
+from app.core.startup import enforce_settings
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Fail closed on insecure/incomplete production configuration before serving.
+    enforce_settings(settings)
     init_db()
+    if settings.sync_scheduler_enabled:
+        scheduler.start()
     yield
+    scheduler.stop()
 
 
 app = FastAPI(
@@ -36,8 +43,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    # Explicit method/header allowlists instead of "*" (least privilege).
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 

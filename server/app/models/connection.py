@@ -34,7 +34,14 @@ class Connection(Base):
     # Encrypted JSON blob of provider-specific secrets (token, url, cookies...).
     encrypted_secrets: Mapped[str] = mapped_column(Text, nullable=False, default="")
 
+    # Sync job state machine: idle -> queued -> running -> ok | partial | error.
+    sync_status: Mapped[str] = mapped_column(String(20), nullable=False, default="idle")
+    last_sync_error: Mapped[str] = mapped_column(String(500), nullable=False, default="")
     last_synced_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    # When the background scheduler should refresh this connection next.
+    next_sync_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
     last_sync_status: Mapped[str] = mapped_column(String(500), nullable=False, default="")

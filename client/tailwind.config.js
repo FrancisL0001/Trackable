@@ -21,7 +21,7 @@ export default {
         success: { DEFAULT: "var(--success)", soft: "var(--success-soft)" },
         bg: { DEFAULT: "var(--bg)", elevated: "var(--bg-elevated)" },
         surface: { DEFAULT: "var(--surface)", 2: "var(--surface-2)" },
-        border: "var(--border)",
+        border: { DEFAULT: "var(--border)", strong: "var(--border-strong)" },
         content: {
           DEFAULT: "var(--text)",
           muted: "var(--text-muted)",
@@ -29,7 +29,15 @@ export default {
         },
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
+        sans: [
+          "Plus Jakarta Sans",
+          "Inter",
+          "system-ui",
+          "-apple-system",
+          "Segoe UI",
+          "Roboto",
+          "sans-serif",
+        ],
       },
       borderRadius: {
         DEFAULT: "var(--radius)",
@@ -40,6 +48,7 @@ export default {
       boxShadow: {
         sm: "var(--shadow-sm)",
         DEFAULT: "var(--shadow)",
+        lg: "var(--shadow-lg)",
       },
       maxWidth: {
         app: "1180px",

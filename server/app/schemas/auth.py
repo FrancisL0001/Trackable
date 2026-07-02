@@ -25,7 +25,16 @@ class UserOut(BaseModel):
     email: EmailStr
     full_name: str
     timezone: str
+    reminder_soon_days: int
     created_at: datetime
+
+
+class UserUpdate(BaseModel):
+    """User-editable profile & reminder preferences."""
+
+    full_name: str | None = Field(default=None, max_length=200)
+    timezone: str | None = Field(default=None, max_length=64)
+    reminder_soon_days: int | None = Field(default=None, ge=1, le=30)
 
 
 class Token(BaseModel):

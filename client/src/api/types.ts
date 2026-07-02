@@ -18,12 +18,21 @@ export type ProviderType =
   | "ics"
   | "manual";
 
+export type SyncStatus = "idle" | "queued" | "running" | "ok" | "partial" | "error";
+
 export interface User {
   id: number;
   email: string;
   full_name: string;
   timezone: string;
+  reminder_soon_days: number;
   created_at: string;
+}
+
+export interface UserUpdate {
+  full_name?: string;
+  timezone?: string;
+  reminder_soon_days?: number;
 }
 
 export interface AuthResponse {
@@ -47,8 +56,18 @@ export interface Item {
   completed_at: string | null;
   source: ProviderType;
   external_id: string;
+  user_edited_fields: string[];
   created_at: string;
   updated_at: string;
+}
+
+/** Paginated item list — truncation is visible via total/has_more. */
+export interface ItemPage {
+  items: Item[];
+  total: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
 }
 
 export interface ItemInput {
@@ -69,23 +88,32 @@ export interface Connection {
   provider: ProviderType;
   is_active: boolean;
   display_name: string;
+  sync_status: SyncStatus;
+  last_sync_error: string;
   last_synced_at: string | null;
+  next_sync_at: string | null;
   last_sync_status: string;
   created_at: string;
 }
 
-export interface SyncResult {
-  provider: ProviderType;
-  created: number;
-  updated: number;
-  total: number;
-  status: string;
+export interface ProviderInfo {
+  id: ProviderType;
+  label: string;
+  description: string;
+  live_supported: boolean;
+  note: string;
 }
 
-export interface SyncSummary {
-  results: SyncResult[];
-  total_created: number;
-  total_updated: number;
+export interface ProvidersOut {
+  demo_mode: boolean;
+  sync_interval_minutes: number;
+  providers: ProviderInfo[];
+}
+
+/** Sync requests are queued; poll connections for per-connection progress. */
+export interface SyncQueued {
+  queued: Connection[];
+  detail: string;
 }
 
 export interface ReminderBuckets {

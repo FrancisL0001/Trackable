@@ -38,6 +38,11 @@ class Integration(abc.ABC):
     def __init__(self, secrets: dict[str, str], *, demo: bool = False) -> None:
         self.secrets = secrets or {}
         self.demo = demo
+        # Set by fetch_items when the provider response could not be fully
+        # consumed (e.g. pagination budget hit). Partial data is surfaced to the
+        # user instead of being silently reported as a full sync.
+        self.partial = False
+        self.partial_reason = ""
 
     @abc.abstractmethod
     def fetch_items(self) -> list[NormalizedItem]:

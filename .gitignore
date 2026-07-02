@@ -36,3 +36,6 @@ build/
 .vscode/
 .idea/
 *.log
+
+# Issues
+issues/

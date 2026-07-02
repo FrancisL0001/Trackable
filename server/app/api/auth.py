@@ -11,7 +11,8 @@ from app.core.database import get_db
 from app.core.rate_limit import limiter
 from app.core.security import create_access_token
 from app.models import User
-from app.schemas.auth import Token, UserCreate, UserLogin, UserOut
+from app.core.cache import cache
+from app.schemas.auth import Token, UserCreate, UserLogin, UserOut, UserUpdate
 from app.services import user_service
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -50,3 +51,15 @@ def login_form(
 @router.get("/me", response_model=UserOut)
 def me(current: User = Depends(get_current_user)) -> User:
     return current
+
+
+@router.patch("/me", response_model=UserOut)
+def update_me(
+    data: UserUpdate,
+    current: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> User:
+    user = user_service.update_profile(db, current, data)
+    # Reminder window affects dashboard buckets; drop the cached copy.
+    cache.invalidate_prefix(f"dashboard:{current.id}")
+    return user

@@ -41,6 +41,26 @@ structure. Backend tests use **pytest**; frontend tests use **vitest** + Testing
 - Cache returns identical results within TTL and refreshes after expiry.
 - CORS allows the configured frontend origin.
 
+### Security hardening (added)
+- Production config guard (`app/core/startup.py`): development never blocks; production
+  fails closed on default/short `SECRET_KEY`, missing/invalid `ENCRYPTION_KEY`,
+  `DEBUG=true`, and localhost/`*` CORS origins. SQLite in production warns, not fatal.
+  (`tests/test_startup.py`)
+- URL safety: only `http(s)` links are accepted on items; unsafe schemes
+  (`javascript:`, `data:`, protocol-relative, malformed) are rejected (422) or stripped
+  from synced data. Client `safeHref` renders links only for safe schemes.
+  (`tests/test_urls.py`, `client/src/utils/url.test.ts`)
+- SSRF protection for integration URLs (`app/core/ssrf.py`): https-only; blocks
+  loopback/private/link-local/multicast/reserved IPs and the cloud metadata address;
+  re-validates on redirect; size-capped. Connect-time scheme validation returns 400 for
+  non-https/unsafe provider URLs. (`tests/test_ssrf.py`, `tests/test_integrations.py`)
+- DATABASE_URL normalization: `postgres://` / `postgresql://` are rewritten to the
+  `postgresql+psycopg://` dialect; SQLite untouched. (`tests/test_database_url.py`)
+
+### Test isolation
+- The rate limiter is disabled in pytest (process-global in-memory storage otherwise
+  leaks across tests); rate limiting is verified at the HTTP layer instead.
+
 ## Edge Cases / Inputs That Must Never Break
 - Empty/whitespace titles rejected with 422.
 - Due dates in the past accepted (overdue) but flagged.

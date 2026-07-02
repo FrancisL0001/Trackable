@@ -11,8 +11,15 @@ from sqlalchemy.pool import StaticPool
 
 warnings.filterwarnings("ignore")
 
+from app.core import database  # noqa: E402
 from app.core.database import Base, get_db  # noqa: E402
+from app.core.rate_limit import limiter  # noqa: E402
 from app.main import app  # noqa: E402
+
+# The rate limiter uses process-global in-memory storage; left enabled it leaks
+# across tests (shared client IP key) and causes spurious 429s. Disable it for the
+# suite — rate limiting is verified separately at the HTTP level.
+limiter.enabled = False
 
 
 @pytest.fixture
@@ -25,9 +32,14 @@ def db_session():
     Base.metadata.create_all(bind=engine)
     TestingSession = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     session = TestingSession()
+    # Background jobs (sync) open their own sessions via database.SessionLocal;
+    # point that at the test engine so they share the in-memory DB.
+    original_session_local = database.SessionLocal
+    database.SessionLocal = TestingSession
     try:
         yield session
     finally:
+        database.SessionLocal = original_session_local
         session.close()
         Base.metadata.drop_all(bind=engine)
 
@@ -42,7 +54,7 @@ def client(db_session):
 
     app.dependency_overrides[get_db] = override_get_db
     # No context manager: tests manage their own schema, so we skip the lifespan
-    # (which would create a stray on-disk SQLite file).
+    # (which would create a stray on-disk SQLite file or start the scheduler).
     yield TestClient(app)
     app.dependency_overrides.clear()
 

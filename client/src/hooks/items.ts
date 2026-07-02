@@ -1,4 +1,4 @@
-// React Query hooks for items: listing and mutations with cache invalidation.
+// React Query hooks for items: paginated listing and mutations with cache invalidation.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { itemsApi } from "../api/endpoints";
 import type { Item, ItemInput } from "../api/types";
@@ -10,6 +10,7 @@ export const itemKeys = {
     ["items", filters] as const,
 };
 
+/** Fetch one page of items (the API caps limit at 500). */
 export function useItems(filters: Record<string, string | undefined> = {}) {
   return useQuery({
     queryKey: itemKeys.list(filters),
@@ -23,6 +24,7 @@ function useInvalidate() {
   return () => {
     qc.invalidateQueries({ queryKey: itemKeys.all });
     qc.invalidateQueries({ queryKey: ["dashboard"] });
+    qc.invalidateQueries({ queryKey: ["reminders"] });
   };
 }
 

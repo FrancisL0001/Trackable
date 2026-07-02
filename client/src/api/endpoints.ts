@@ -6,11 +6,14 @@ import type {
   Dashboard,
   Item,
   ItemInput,
+  ItemPage,
   ProviderType,
+  ProvidersOut,
   ReminderBuckets,
   StudyTip,
-  SyncSummary,
+  SyncQueued,
   User,
+  UserUpdate,
 } from "./types";
 
 export const authApi = {
@@ -19,6 +22,7 @@ export const authApi = {
   login: (body: { email: string; password: string }) =>
     api.post<AuthResponse>("/api/auth/login", body, true),
   me: () => api.get<User>("/api/auth/me"),
+  updateMe: (body: UserUpdate) => api.patch<User>("/api/auth/me", body),
 };
 
 function toQuery(params: Record<string, string | undefined>): string {
@@ -29,7 +33,7 @@ function toQuery(params: Record<string, string | undefined>): string {
 
 export const itemsApi = {
   list: (filters: Record<string, string | undefined> = {}) =>
-    api.get<Item[]>(`/api/items${toQuery(filters)}`),
+    api.get<ItemPage>(`/api/items${toQuery(filters)}`),
   create: (body: ItemInput) => api.post<Item>("/api/items", body),
   update: (id: number, body: Partial<ItemInput>) =>
     api.patch<Item>(`/api/items/${id}`, body),
@@ -39,17 +43,14 @@ export const itemsApi = {
 };
 
 export const integrationsApi = {
-  providers: () =>
-    api.get<{ demo_mode: boolean; providers: ProviderType[] }>(
-      "/api/integrations/providers"
-    ),
+  providers: () => api.get<ProvidersOut>("/api/integrations/providers"),
   connections: () => api.get<Connection[]>("/api/integrations/connections"),
   connect: (body: { provider: ProviderType; secrets?: Record<string, string> }) =>
     api.post<Connection>("/api/integrations/connections", body),
   disconnect: (id: number) => api.del<void>(`/api/integrations/connections/${id}`),
   toggle: (id: number, active: boolean) =>
     api.post<Connection>(`/api/integrations/connections/${id}/active?active=${active}`),
-  sync: () => api.post<SyncSummary>("/api/integrations/sync"),
+  sync: () => api.post<SyncQueued>("/api/integrations/sync"),
 };
 
 export const dashboardApi = {

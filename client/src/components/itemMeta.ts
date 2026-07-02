@@ -18,27 +18,42 @@ export const PRIORITY_BADGE: Record<ItemPriority, string> = {
   high: "badge badge-danger",
 };
 
+// Fallback display metadata; the Integrations page prefers the server's
+// capability metadata (label/description/live_supported) when available.
 export const PROVIDER_META: Record<
   ProviderType,
-  { label: string; description: string }
+  { label: string; description: string; monogram: string; tone: string }
 > = {
   canvas: {
     label: "Canvas",
     description: "Sync assignments and due dates from your Canvas courses.",
+    monogram: "C",
+    tone: "bg-danger-soft text-danger",
   },
   google_calendar: {
-    label: "Google Calendar",
-    description: "Pull in events and meetings from your calendar.",
+    label: "Google Calendar (iCal feed)",
+    description: "Pull in events and meetings via your calendar's secret iCal URL.",
+    monogram: "G",
+    tone: "bg-primary-soft text-primary-strong",
   },
   gradescope: {
     label: "Gradescope",
-    description: "Track Gradescope homework and submission deadlines.",
+    description: "Preview Gradescope homework and submission deadlines.",
+    monogram: "Gs",
+    tone: "bg-success-soft text-success",
   },
   ics: {
-    label: "Course website (ICS)",
+    label: "Calendar feed (ICS)",
     description: "Import any calendar feed from a course website or portal.",
+    monogram: "iC",
+    tone: "bg-accent-soft text-accent",
   },
-  manual: { label: "Manual", description: "Items you create yourself." },
+  manual: {
+    label: "Manual",
+    description: "Items you create yourself.",
+    monogram: "M",
+    tone: "bg-surface-2 text-content-muted",
+  },
 };
 
 export const ALL_KINDS: ItemKind[] = [

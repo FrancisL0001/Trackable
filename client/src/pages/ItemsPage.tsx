@@ -1,14 +1,17 @@
 // Reusable list page for a subset of item kinds (Assignments / Tasks / Events).
-import { useMemo, useState } from "react";
+// Filtering happens at the API layer (kinds/search); pagination metadata makes
+// truncation visible instead of silently capping.
+import { useDeferredValue, useMemo, useState } from "react";
 import { Icon } from "../components/Icon";
 import { ItemList } from "../components/ItemCard";
 import { ItemForm } from "../components/ItemForm";
 import {
-  CenterSpinner,
   EmptyState,
   ErrorState,
   PageHeader,
+  PageSkeleton,
   SectionTitle,
+  TruncationHint,
 } from "../components/ui";
 import { useItems, useItemMutations } from "../hooks/items";
 import type { Item, ItemKind } from "../api/types";
@@ -28,20 +31,26 @@ export function ItemsPage({
   defaultKind,
   emptyHint,
 }: ItemsPageProps) {
-  const { data, isLoading, isError } = useItems();
+  const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search.trim());
+  const { data, isLoading, isError } = useItems({
+    kinds: kinds.join(","),
+    search: deferredSearch || undefined,
+  });
   const { create, update, toggle, remove } = useItemMutations();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
   const [showDone, setShowDone] = useState(false);
 
-  const filtered = useMemo(() => {
-    const all = (data ?? []).filter((i) => kinds.includes(i.kind));
-    const open = all.filter((i) => i.status !== "done");
-    const done = all.filter((i) => i.status === "done");
-    return { open, done };
-  }, [data, kinds]);
+  const split = useMemo(() => {
+    const all = data?.items ?? [];
+    return {
+      open: all.filter((i) => i.status !== "done"),
+      done: all.filter((i) => i.status === "done"),
+    };
+  }, [data]);
 
-  if (isLoading) return <CenterSpinner label="Loading…" />;
+  if (isLoading) return <PageSkeleton />;
   if (isError) return <ErrorState />;
 
   const openForm = (item: Item | null) => {
@@ -52,6 +61,9 @@ export function ItemsPage({
     setShowForm(false);
     setEditing(null);
   };
+
+  const isEmpty = split.open.length === 0 && split.done.length === 0;
+  const searching = deferredSearch.length > 0;
 
   return (
     <div>
@@ -65,23 +77,47 @@ export function ItemsPage({
         }
       />
 
-      {filtered.open.length === 0 && filtered.done.length === 0 ? (
+      <div className="relative mb-4 max-w-md">
+        <Icon
+          name="search"
+          size={16}
+          className="absolute left-3.5 top-1/2 -translate-y-1/2 text-content-faint pointer-events-none"
+        />
+        <input
+          className="input !pl-10"
+          type="search"
+          placeholder={`Search ${title.toLowerCase()}…`}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          aria-label={`Search ${title}`}
+        />
+      </div>
+
+      {isEmpty ? (
         <div className="card">
-          <EmptyState
-            title="Nothing here yet"
-            hint={emptyHint}
-            action={
-              <button className="btn btn-primary" onClick={() => openForm(null)}>
-                <Icon name="plus" size={18} /> Add one
-              </button>
-            }
-          />
+          {searching ? (
+            <EmptyState
+              icon="search"
+              title="No matches"
+              hint={`Nothing matches “${deferredSearch}”.`}
+            />
+          ) : (
+            <EmptyState
+              title="Nothing here yet"
+              hint={emptyHint}
+              action={
+                <button className="btn btn-primary" onClick={() => openForm(null)}>
+                  <Icon name="plus" size={18} /> Add one
+                </button>
+              }
+            />
+          )}
         </div>
       ) : (
         <>
-          {filtered.open.length > 0 ? (
+          {split.open.length > 0 ? (
             <ItemList
-              items={filtered.open}
+              items={split.open}
               onToggle={(i) => toggle.mutate(i)}
               onEdit={openForm}
               onDelete={(i) => remove.mutate(i)}
@@ -92,19 +128,22 @@ export function ItemsPage({
             </div>
           )}
 
-          {filtered.done.length > 0 && (
+          {data && <TruncationHint shown={data.items.length} total={data.total} />}
+
+          {split.done.length > 0 && (
             <>
               <button
                 className="btn btn-ghost btn-sm mt-4"
                 onClick={() => setShowDone((s) => !s)}
               >
-                {showDone ? "Hide" : "Show"} completed ({filtered.done.length})
+                <Icon name={showDone ? "chevron-left" : "chevron-right"} size={14} />
+                {showDone ? "Hide" : "Show"} completed ({split.done.length})
               </button>
               {showDone && (
                 <>
                   <SectionTitle icon="check">Completed</SectionTitle>
                   <ItemList
-                    items={filtered.done}
+                    items={split.done}
                     onToggle={(i) => toggle.mutate(i)}
                     onDelete={(i) => remove.mutate(i)}
                   />

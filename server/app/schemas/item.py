@@ -5,7 +5,18 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.core.urls import is_safe_web_url
 from app.models.enums import ItemKind, ItemPriority, ItemStatus, ProviderType
+
+
+def _validate_url(value: str | None) -> str | None:
+    """Allow empty, otherwise require a safe http(s) URL."""
+    if value is None or value == "":
+        return value
+    cleaned = value.strip()
+    if not is_safe_web_url(cleaned):
+        raise ValueError("url must be a valid http(s) link")
+    return cleaned
 
 
 class ItemBase(BaseModel):
@@ -25,6 +36,11 @@ class ItemBase(BaseModel):
         if not v.strip():
             raise ValueError("title must not be blank")
         return v.strip()
+
+    @field_validator("url")
+    @classmethod
+    def url_is_safe(cls, v: str) -> str:
+        return _validate_url(v) or ""
 
 
 class ItemCreate(ItemBase):
@@ -50,6 +66,11 @@ class ItemUpdate(BaseModel):
             raise ValueError("title must not be blank")
         return v.strip() if v else v
 
+    @field_validator("url")
+    @classmethod
+    def url_is_safe(cls, v: str | None) -> str | None:
+        return _validate_url(v)
+
 
 class ItemOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -68,5 +89,17 @@ class ItemOut(BaseModel):
     completed_at: datetime | None
     source: ProviderType
     external_id: str
+    # Provider-owned fields the user has overridden; sync preserves these.
+    user_edited_fields: list[str] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
+
+
+class ItemPage(BaseModel):
+    """Paginated list response — truncation is visible, never silent."""
+
+    items: list[ItemOut]
+    total: int
+    limit: int
+    offset: int
+    has_more: bool

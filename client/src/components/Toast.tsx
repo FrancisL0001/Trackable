@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { Icon } from "./Icon";
 
 interface ToastContextValue {
   notify: (message: string) => void;
@@ -21,7 +22,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!message) return;
-    const t = setTimeout(() => setMessage(null), 2600);
+    const t = setTimeout(() => setMessage(null), 2800);
     return () => clearTimeout(t);
   }, [message]);
 
@@ -30,9 +31,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       {message && (
         <div
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] px-[18px] py-3 rounded-full font-semibold text-sm shadow bg-content text-bg"
+          className="fixed bottom-24 md:bottom-7 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2 pl-3.5 pr-[18px] py-2.5 rounded-full font-semibold text-sm shadow-lg bg-content text-bg anim-rise"
           role="status"
         >
+          <span className="grid place-items-center w-5 h-5 rounded-full bg-primary text-white">
+            <Icon name="check" size={12} />
+          </span>
           {message}
         </div>
       )}

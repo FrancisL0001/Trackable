@@ -11,6 +11,7 @@ import httpx
 from icalendar import Calendar
 
 from app.core.errors import IntegrationError
+from app.core.ssrf import safe_get
 from app.integrations import demo_data
 from app.integrations.base import Integration, NormalizedItem
 from app.models.enums import ItemKind, ProviderType
@@ -63,9 +64,8 @@ class ICSIntegration(Integration):
         self.validate()
         url = self.secrets["url"]
         try:
-            resp = httpx.get(url, timeout=15, follow_redirects=True)
-            resp.raise_for_status()
-            return self._parse(resp.content)
+            raw = safe_get(url)
+            return self._parse(raw)
         except httpx.HTTPError as exc:
             raise IntegrationError(f"ICS sync failed: {exc}") from exc
         except ValueError as exc:

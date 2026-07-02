@@ -23,20 +23,32 @@ class ConnectionOut(BaseModel):
     provider: ProviderType
     is_active: bool
     display_name: str
+    sync_status: str
+    last_sync_error: str
     last_synced_at: datetime | None
+    next_sync_at: datetime | None
     last_sync_status: str
     created_at: datetime
 
 
-class SyncResult(BaseModel):
-    provider: ProviderType
-    created: int
-    updated: int
-    total: int
-    status: str
+class ProviderInfo(BaseModel):
+    """Capability metadata for one connectable provider."""
+
+    id: ProviderType
+    label: str
+    description: str
+    live_supported: bool
+    note: str
 
 
-class SyncSummary(BaseModel):
-    results: list[SyncResult]
-    total_created: int
-    total_updated: int
+class ProvidersOut(BaseModel):
+    demo_mode: bool
+    sync_interval_minutes: int
+    providers: list[ProviderInfo]
+
+
+class SyncQueued(BaseModel):
+    """Response to a sync request: work is queued, poll connections for status."""
+
+    queued: list[ConnectionOut]
+    detail: str

@@ -54,12 +54,12 @@ export function ItemForm({ initial, defaultKind, onSubmit, onClose }: ItemFormPr
     <Modal title={initial ? "Edit item" : "New item"} onClose={onClose}>
       <form onSubmit={handleSubmit}>
         {error && (
-          <div className="bg-danger-soft text-danger rounded-sm px-3 py-2.5 text-sm mb-3.5">
+          <div className="notice notice-danger mb-4" role="alert">
             {error}
           </div>
         )}
 
-        <div className="flex flex-col gap-1.5 mb-4">
+        <div className="field">
           <label className="field-label" htmlFor="if-title">
             Title
           </label>
@@ -74,7 +74,7 @@ export function ItemForm({ initial, defaultKind, onSubmit, onClose }: ItemFormPr
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1.5 mb-4">
+          <div className="field">
             <label className="field-label" htmlFor="if-kind">
               Type
             </label>
@@ -91,7 +91,7 @@ export function ItemForm({ initial, defaultKind, onSubmit, onClose }: ItemFormPr
               ))}
             </select>
           </div>
-          <div className="flex flex-col gap-1.5 mb-4">
+          <div className="field">
             <label className="field-label" htmlFor="if-priority">
               Priority
             </label>
@@ -111,7 +111,7 @@ export function ItemForm({ initial, defaultKind, onSubmit, onClose }: ItemFormPr
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1.5 mb-4">
+          <div className="field">
             <label className="field-label" htmlFor="if-course">
               Course (optional)
             </label>
@@ -123,7 +123,7 @@ export function ItemForm({ initial, defaultKind, onSubmit, onClose }: ItemFormPr
               placeholder="e.g. CS 200"
             />
           </div>
-          <div className="flex flex-col gap-1.5 mb-4">
+          <div className="field">
             <label className="field-label" htmlFor="if-due">
               Due date (optional)
             </label>
@@ -137,7 +137,7 @@ export function ItemForm({ initial, defaultKind, onSubmit, onClose }: ItemFormPr
           </div>
         </div>
 
-        <div className="flex flex-col gap-1.5 mb-4">
+        <div className="field">
           <label className="field-label" htmlFor="if-location">
             Location (optional)
           </label>
@@ -150,7 +150,7 @@ export function ItemForm({ initial, defaultKind, onSubmit, onClose }: ItemFormPr
           />
         </div>
 
-        <div className="flex flex-col gap-1.5 mb-4">
+        <div className="field">
           <label className="field-label" htmlFor="if-desc">
             Notes (optional)
           </label>

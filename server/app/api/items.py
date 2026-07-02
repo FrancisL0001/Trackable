@@ -1,9 +1,14 @@
-"""Item CRUD routes (assignments, events, tasks, jobs, ...)."""
+"""Item CRUD routes (assignments, events, tasks, jobs, ...).
+
+The list endpoint is paginated and returns ``total``/``has_more`` so clients can
+see when a result set is truncated. Category pages filter by ``kinds`` and the
+calendar queries by due-date window instead of downloading everything.
+"""
 from __future__ import annotations
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -11,7 +16,7 @@ from app.core.cache import cache
 from app.core.database import get_db
 from app.models import User
 from app.models.enums import ItemKind, ItemStatus, ProviderType
-from app.schemas.item import ItemCreate, ItemOut, ItemUpdate
+from app.schemas.item import ItemCreate, ItemOut, ItemPage, ItemUpdate
 from app.services import item_service
 
 router = APIRouter(prefix="/api/items", tags=["items"])
@@ -21,28 +26,51 @@ def _invalidate(owner_id: int) -> None:
     cache.invalidate_prefix(f"dashboard:{owner_id}")
 
 
-@router.get("", response_model=list[ItemOut])
+def _parse_kinds(kinds: str | None) -> list[ItemKind] | None:
+    """Parse a comma-separated ``kinds`` filter, e.g. ``assignment,exam``."""
+    if not kinds:
+        return None
+    try:
+        return [ItemKind(k.strip()) for k in kinds.split(",") if k.strip()]
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid kind: {exc}") from exc
+
+
+@router.get("", response_model=ItemPage)
 def list_items(
     kind: ItemKind | None = None,
+    kinds: str | None = Query(
+        default=None, description="Comma-separated list of kinds, e.g. assignment,exam"
+    ),
     status_filter: ItemStatus | None = Query(default=None, alias="status"),
     source: ProviderType | None = None,
     course: str | None = None,
     due_before: datetime | None = None,
     due_after: datetime | None = None,
     search: str | None = None,
+    limit: int = Query(default=item_service.DEFAULT_LIMIT, ge=1, le=item_service.MAX_LIMIT),
+    offset: int = Query(default=0, ge=0),
     current: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> list[ItemOut]:
-    return item_service.list_items(
-        db,
-        current.id,
+) -> ItemPage:
+    filters = dict(
         kind=kind,
+        kinds=_parse_kinds(kinds),
         status=status_filter,
         source=source,
         course=course,
         due_before=due_before,
         due_after=due_after,
         search=search,
+    )
+    items = item_service.list_items(db, current.id, limit=limit, offset=offset, **filters)
+    total = item_service.count_items(db, current.id, **filters)
+    return ItemPage(
+        items=[ItemOut.model_validate(i) for i in items],
+        total=total,
+        limit=limit,
+        offset=offset,
+        has_more=offset + len(items) < total,
     )
 
 

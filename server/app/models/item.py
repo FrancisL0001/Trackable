@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from sqlalchemy import (
+    JSON,
     DateTime,
     ForeignKey,
     Index,
@@ -66,6 +67,10 @@ class Item(Base):
         String(20), default=ProviderType.MANUAL, nullable=False
     )
     external_id: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+
+    # Provider-owned fields the user has manually edited on a synced item.
+    # Sync preserves these instead of overwriting them with provider data.
+    user_edited_fields: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(

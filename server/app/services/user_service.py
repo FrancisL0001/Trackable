@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.errors import AuthError, ConflictError
 from app.core.security import hash_password, verify_password
 from app.models import User
-from app.schemas.auth import UserCreate
+from app.schemas.auth import UserCreate, UserUpdate
 
 
 def get_by_email(db: Session, email: str) -> User | None:
@@ -28,6 +28,17 @@ def register(db: Session, data: UserCreate) -> User:
         hashed_password=hash_password(data.password),
     )
     db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def update_profile(db: Session, user: User, data: UserUpdate) -> User:
+    changes = data.model_dump(exclude_unset=True, exclude_none=True)
+    if "full_name" in changes:
+        changes["full_name"] = changes["full_name"].strip()
+    for field, value in changes.items():
+        setattr(user, field, value)
     db.commit()
     db.refresh(user)
     return user

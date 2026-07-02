@@ -1,53 +1,54 @@
-"""Aggregate dashboard statistics from a user's items."""
+"""Aggregate dashboard statistics straight from the database.
+
+Counts use SQL aggregates rather than loading item rows, so stats stay correct
+no matter how many items a user accumulates (no hidden list cap).
+"""
 from __future__ import annotations
 
-from collections import Counter
 from datetime import timedelta
 
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.timeutils import ensure_aware, utcnow
+from app.core.timeutils import utcnow
+from app.models import Item
 from app.models.enums import ItemStatus
-from app.services import item_service, reminder_service
+from app.services import reminder_service
 
 
 def build_stats(db: Session, owner_id: int) -> dict:
     now = utcnow()
+    end_of_today = now.replace(hour=23, minute=59, second=59, microsecond=0)
     week_ahead = now + timedelta(days=7)
     week_ago = now - timedelta(days=7)
-    items = item_service.list_items(db, owner_id)
 
-    open_items = [i for i in items if i.status != ItemStatus.DONE]
-    overdue = due_today = due_week = completed_week = 0
-    by_course: Counter[str] = Counter()
+    def count(*conditions) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(Item)
+            .where(Item.owner_id == owner_id, *conditions)
+        )
+        return db.scalar(stmt) or 0
 
-    end_of_today = now.replace(hour=23, minute=59, second=59, microsecond=0)
-    for i in open_items:
-        if i.course:
-            by_course[i.course] += 1
-        due = ensure_aware(i.due_at)
-        if due is None:
-            continue
-        if due < now:
-            overdue += 1
-        elif due <= end_of_today:
-            due_today += 1
-        if now <= due <= week_ahead:
-            due_week += 1
+    is_open = Item.status != ItemStatus.DONE
 
-    for i in items:
-        if i.status == ItemStatus.DONE:
-            completed = ensure_aware(i.completed_at)
-            if completed and completed >= week_ago:
-                completed_week += 1
+    by_course_rows = db.execute(
+        select(Item.course, func.count())
+        .where(Item.owner_id == owner_id, is_open, Item.course != "")
+        .group_by(Item.course)
+    ).all()
 
     return {
-        "total_open": len(open_items),
-        "overdue": overdue,
-        "due_today": due_today,
-        "due_this_week": due_week,
-        "completed_this_week": completed_week,
-        "by_course": dict(by_course),
+        "total_open": count(is_open),
+        "overdue": count(is_open, Item.due_at.is_not(None), Item.due_at < now),
+        "due_today": count(is_open, Item.due_at >= now, Item.due_at <= end_of_today),
+        "due_this_week": count(is_open, Item.due_at >= now, Item.due_at <= week_ahead),
+        "completed_this_week": count(
+            Item.status == ItemStatus.DONE,
+            Item.completed_at.is_not(None),
+            Item.completed_at >= week_ago,
+        ),
+        "by_course": {course: n for course, n in by_course_rows},
     }
 
 

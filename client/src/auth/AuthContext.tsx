@@ -11,13 +11,14 @@ import {
 } from "react";
 import { getToken, setToken, setUnauthorizedHandler } from "../api/client";
 import { authApi } from "../api/endpoints";
-import type { User } from "../api/types";
+import type { User, UserUpdate } from "../api/types";
 
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, fullName: string) => Promise<void>;
+  updateProfile: (input: UserUpdate) => Promise<void>;
   logout: () => void;
 }
 
@@ -71,9 +72,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const updateProfile = useCallback(async (input: UserUpdate) => {
+    const me = await authApi.updateMe(input);
+    setUser(me);
+  }, []);
+
   const value = useMemo(
-    () => ({ user, loading, login, register, logout }),
-    [user, loading, login, register, logout]
+    () => ({ user, loading, login, register, updateProfile, logout }),
+    [user, loading, login, register, updateProfile, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
