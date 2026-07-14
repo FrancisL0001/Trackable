@@ -1,1 +1,41 @@
+# Claude
 *.claude
+.claude/
+
+# Python
+server/.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.db
+*.sqlite3
+
+# Node / Vite
+client/node_modules/
+client/dist/
+node_modules/
+*.local
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# Coverage / build
+coverage/
+htmlcov/
+.coverage
+dist/
+build/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+*.log
+
+# Issues
+issues/
