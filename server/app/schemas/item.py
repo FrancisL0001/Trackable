@@ -89,6 +89,8 @@ class ItemOut(BaseModel):
     completed_at: datetime | None
     source: ProviderType
     external_id: str
+    # The connection (feed) that synced this item; null for manual items.
+    connection_id: int | None
     # Provider-owned fields the user has overridden; sync preserves these.
     user_edited_fields: list[str] = Field(default_factory=list)
     created_at: datetime

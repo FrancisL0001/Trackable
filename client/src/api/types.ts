@@ -16,6 +16,7 @@ export type ProviderType =
   | "google_calendar"
   | "gradescope"
   | "ics"
+  | "web_page"
   | "manual";
 
 export type SyncStatus = "idle" | "queued" | "running" | "ok" | "partial" | "error";
@@ -56,6 +57,7 @@ export interface Item {
   completed_at: string | null;
   source: ProviderType;
   external_id: string;
+  connection_id: number | null;
   user_edited_fields: string[];
   created_at: string;
   updated_at: string;
@@ -101,6 +103,8 @@ export interface ProviderInfo {
   label: string;
   description: string;
   live_supported: boolean;
+  /** True when a user can hold several connections (one feed per course). */
+  multi: boolean;
   note: string;
 }
 

@@ -31,4 +31,5 @@ class ProviderType(str, enum.Enum):
     GOOGLE_CALENDAR = "google_calendar"
     GRADESCOPE = "gradescope"
     ICS = "ics"
+    WEB_PAGE = "web_page"
     MANUAL = "manual"

@@ -45,8 +45,11 @@ export const itemsApi = {
 export const integrationsApi = {
   providers: () => api.get<ProvidersOut>("/api/integrations/providers"),
   connections: () => api.get<Connection[]>("/api/integrations/connections"),
-  connect: (body: { provider: ProviderType; secrets?: Record<string, string> }) =>
-    api.post<Connection>("/api/integrations/connections", body),
+  connect: (body: {
+    provider: ProviderType;
+    display_name?: string;
+    secrets?: Record<string, string>;
+  }) => api.post<Connection>("/api/integrations/connections", body),
   disconnect: (id: number) => api.del<void>(`/api/integrations/connections/${id}`),
   toggle: (id: number, active: boolean) =>
     api.post<Connection>(`/api/integrations/connections/${id}/active?active=${active}`),

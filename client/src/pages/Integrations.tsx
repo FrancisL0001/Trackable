@@ -1,12 +1,16 @@
 // Integrations hub: connect providers, watch background sync progress, disconnect.
 // Sync is asynchronous server-side: POST /sync queues work, and this page polls
 // the connections list while any connection is queued/running.
+//
+// Multi-capable providers (per-course ICS feeds, Google calendars) can hold
+// several named connections at once — one per course website.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { integrationsApi } from "../api/endpoints";
 import { Icon } from "../components/Icon";
 import { Modal } from "../components/Modal";
-import { CenterSpinner, ErrorState, PageHeader } from "../components/ui";
+import { QueryError } from "../components/ErrorPage";
+import { CenterSpinner, PageHeader } from "../components/ui";
 import { PROVIDER_META } from "../components/itemMeta";
 import { useToast } from "../components/Toast";
 import { formatDateTime } from "../utils/date";
@@ -24,6 +28,7 @@ const SECRET_FIELDS: Record<string, { key: string; label: string; type?: string 
     { key: "password", label: "Password", type: "password" },
   ],
   ics: [{ key: "url", label: "Calendar feed URL (.ics)" }],
+  web_page: [{ key: "url", label: "Course page URL (the assignments page)" }],
 };
 
 const PENDING: SyncStatus[] = ["queued", "running"];
@@ -49,24 +54,84 @@ function SyncStatusBadge({ conn }: { conn: Connection }) {
   }
 }
 
+/** One connected feed/account row inside a provider card. */
+function ConnectionRow({
+  conn,
+  showName,
+  onDisconnect,
+  onToggle,
+  busy,
+}: {
+  conn: Connection;
+  showName: boolean;
+  onDisconnect: () => void;
+  onToggle: (active: boolean) => void;
+  busy: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-3 py-2.5 min-w-0">
+      <div className="flex-1 min-w-0">
+        {showName && (
+          <div className="font-semibold text-[0.9rem] truncate">{conn.display_name}</div>
+        )}
+        <div className="text-[0.78rem] text-content-muted truncate">
+          {conn.last_synced_at
+            ? `Last synced ${formatDateTime(conn.last_synced_at)}`
+            : "First sync in progress…"}
+        </div>
+        {(conn.sync_status === "error" || conn.sync_status === "partial") &&
+          conn.last_sync_error && (
+            <div
+              className={`text-[0.78rem] mt-0.5 ${
+                conn.sync_status === "error" ? "text-danger" : "text-warning"
+              }`}
+            >
+              {conn.last_sync_error}
+            </div>
+          )}
+      </div>
+      <SyncStatusBadge conn={conn} />
+      <div className="flex gap-1 shrink-0">
+        <button
+          className="icon-btn !w-9 !h-9"
+          onClick={() => onToggle(!conn.is_active)}
+          disabled={busy}
+          aria-label={conn.is_active ? `Pause ${conn.display_name}` : `Resume ${conn.display_name}`}
+          title={conn.is_active ? "Pause syncing" : "Resume syncing"}
+        >
+          <Icon name={conn.is_active ? "close" : "sync"} size={15} />
+        </button>
+        <button
+          className="icon-btn !w-9 !h-9 hover:!text-danger hover:!border-danger"
+          onClick={onDisconnect}
+          disabled={busy}
+          aria-label={`Disconnect ${conn.display_name}`}
+          title="Disconnect (removes its synced items)"
+        >
+          <Icon name="trash" size={15} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ProviderCard({
   info,
-  conn,
-  demo,
+  conns,
   onConnect,
   onDisconnect,
   onToggle,
   busy,
 }: {
   info: ProviderInfo;
-  conn: Connection | undefined;
-  demo: boolean;
+  conns: Connection[];
   onConnect: () => void;
-  onDisconnect: () => void;
-  onToggle: (active: boolean) => void;
+  onDisconnect: (conn: Connection) => void;
+  onToggle: (conn: Connection, active: boolean) => void;
   busy: boolean;
 }) {
   const meta = PROVIDER_META[info.id];
+  const connected = conns.length > 0;
   return (
     <div className="card card-hover p-5 flex flex-col">
       <div className="flex items-start justify-between gap-3">
@@ -79,52 +144,46 @@ function ProviderCard({
           </span>
           <div className="min-w-0">
             <strong className="block truncate">{info.label}</strong>
-            {!info.live_supported && demo && (
-              <span className="badge badge-warning mt-0.5">Demo only</span>
-            )}
+            <div className="flex gap-1.5 mt-0.5">
+              {info.multi && connected && (
+                <span className="badge badge-primary">
+                  {conns.length} {conns.length === 1 ? "feed" : "feeds"}
+                </span>
+              )}
+            </div>
           </div>
         </div>
-        {conn && <SyncStatusBadge conn={conn} />}
+        {!info.multi && conns[0] && <SyncStatusBadge conn={conns[0]} />}
       </div>
 
-      <p className="text-content-muted text-sm mt-3 mb-4">{info.description}</p>
+      <p className="text-content-muted text-sm mt-3 mb-3">{info.description}</p>
 
-      {conn ? (
-        <div className="mt-auto">
-          <div className="text-[0.78rem] text-content-muted mb-3">
-            {conn.last_synced_at
-              ? `Last synced ${formatDateTime(conn.last_synced_at)}`
-              : "First sync in progress…"}
-            {conn.sync_status === "error" && conn.last_sync_error && (
-              <span className="block text-danger mt-1">{conn.last_sync_error}</span>
-            )}
-            {conn.sync_status === "partial" && conn.last_sync_error && (
-              <span className="block text-warning mt-1">{conn.last_sync_error}</span>
-            )}
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => onToggle(!conn.is_active)}
-              disabled={busy}
-            >
-              {conn.is_active ? "Pause" : "Resume"}
-            </button>
-            <button className="btn btn-danger btn-sm" onClick={onDisconnect} disabled={busy}>
-              <Icon name="trash" size={15} /> Disconnect
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="mt-auto">
-          <button className="btn btn-primary btn-sm" onClick={onConnect} disabled={busy}>
-            <Icon name="plus" size={15} /> Connect
-          </button>
-          {info.note && (
-            <p className="text-[0.75rem] text-content-faint mt-2.5 mb-0">{info.note}</p>
-          )}
+      {connected && (
+        <div className="divide-y divide-border border-t border-border">
+          {conns.map((conn) => (
+            <ConnectionRow
+              key={conn.id}
+              conn={conn}
+              showName={info.multi}
+              busy={busy}
+              onDisconnect={() => onDisconnect(conn)}
+              onToggle={(active) => onToggle(conn, active)}
+            />
+          ))}
         </div>
       )}
+
+      <div className="mt-auto pt-3">
+        {(!connected || info.multi) && (
+          <button className="btn btn-primary btn-sm" onClick={onConnect} disabled={busy}>
+            <Icon name="plus" size={15} />
+            {info.multi && connected ? "Add another feed" : "Connect"}
+          </button>
+        )}
+        {!connected && info.note && (
+          <p className="text-[0.75rem] text-content-faint mt-2.5 mb-0">{info.note}</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -143,7 +202,8 @@ export function Integrations() {
     refetchInterval: (query) =>
       query.state.data?.some((c) => PENDING.includes(c.sync_status)) ? 1500 : false,
   });
-  const [connecting, setConnecting] = useState<ProviderType | null>(null);
+  const [connecting, setConnecting] = useState<ProviderInfo | null>(null);
+  const [displayName, setDisplayName] = useState("");
   const [secrets, setSecrets] = useState<Record<string, string>>({});
   const watchingSync = useRef(false);
 
@@ -167,15 +227,24 @@ export function Integrations() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anyPending, connections.data]);
 
+  const closeModal = () => {
+    setConnecting(null);
+    setDisplayName("");
+    setSecrets({});
+    connect.reset();
+  };
+
   const connect = useMutation({
-    mutationFn: (body: { provider: ProviderType; secrets?: Record<string, string> }) =>
-      integrationsApi.connect(body),
+    mutationFn: (body: {
+      provider: ProviderType;
+      display_name?: string;
+      secrets?: Record<string, string>;
+    }) => integrationsApi.connect(body),
     onSuccess: () => {
       watchingSync.current = true;
       refresh();
       notify("Connected — first sync started");
-      setConnecting(null);
-      setSecrets({});
+      closeModal();
     },
   });
 
@@ -183,7 +252,7 @@ export function Integrations() {
     mutationFn: (id: number) => integrationsApi.disconnect(id),
     onSuccess: () => {
       refresh();
-      notify("Disconnected");
+      notify("Disconnected — its items were removed");
     },
   });
 
@@ -208,16 +277,36 @@ export function Integrations() {
 
   if (providers.isLoading || connections.isLoading) return <CenterSpinner />;
   if (providers.isError || connections.isError || !providers.data || !connections.data)
-    return <ErrorState />;
+    return (
+      <QueryError
+        error={providers.error ?? connections.error}
+        onRetry={() => {
+          providers.refetch();
+          connections.refetch();
+        }}
+      />
+    );
 
   const { demo_mode: demo, sync_interval_minutes: interval } = providers.data;
-  const connectedMap = new Map<ProviderType, Connection>(
-    connections.data.map((c) => [c.provider, c])
-  );
+  const byProvider = new Map<ProviderType, Connection[]>();
+  for (const c of connections.data) {
+    const list = byProvider.get(c.provider);
+    if (list) list.push(c);
+    else byProvider.set(c.provider, [c]);
+  }
 
-  const handleConnectClick = (provider: ProviderType) => {
-    if (demo) connect.mutate({ provider });
-    else setConnecting(provider);
+  const handleConnectClick = (info: ProviderInfo) => {
+    // Multi providers always go through the modal (to name the feed); in demo
+    // mode single providers connect instantly with sample data.
+    if (demo && !info.multi) connect.mutate({ provider: info.id });
+    else setConnecting(info);
+  };
+
+  const handleDisconnect = (conn: Connection) => {
+    const ok = window.confirm(
+      `Disconnect “${conn.display_name}”? Items it synced will be removed from your timeline (manual items are kept).`
+    );
+    if (ok) disconnect.mutate(conn.id);
   };
 
   return (
@@ -249,35 +338,29 @@ export function Integrations() {
       )}
 
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-        {providers.data.providers.map((info) => {
-          const conn = connectedMap.get(info.id);
-          return (
-            <ProviderCard
-              key={info.id}
-              info={info}
-              conn={conn}
-              demo={demo}
-              busy={connect.isPending || disconnect.isPending || toggleActive.isPending}
-              onConnect={() => handleConnectClick(info.id)}
-              onDisconnect={() => conn && disconnect.mutate(conn.id)}
-              onToggle={(active) => conn && toggleActive.mutate({ id: conn.id, active })}
-            />
-          );
-        })}
+        {providers.data.providers.map((info) => (
+          <ProviderCard
+            key={info.id}
+            info={info}
+            conns={byProvider.get(info.id) ?? []}
+            busy={connect.isPending || disconnect.isPending || toggleActive.isPending}
+            onConnect={() => handleConnectClick(info)}
+            onDisconnect={handleDisconnect}
+            onToggle={(conn, active) => toggleActive.mutate({ id: conn.id, active })}
+          />
+        ))}
       </div>
 
       {connecting && (
-        <Modal
-          title={`Connect ${PROVIDER_META[connecting].label}`}
-          onClose={() => {
-            setConnecting(null);
-            setSecrets({});
-          }}
-        >
+        <Modal title={`Connect ${connecting.label}`} onClose={closeModal}>
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              connect.mutate({ provider: connecting, secrets });
+              connect.mutate({
+                provider: connecting.id,
+                display_name: displayName.trim() || undefined,
+                secrets: demo ? undefined : secrets,
+              });
             }}
           >
             {connect.isError && (
@@ -287,31 +370,47 @@ export function Integrations() {
                   : "Could not connect."}
               </div>
             )}
-            {SECRET_FIELDS[connecting].map((f) => (
-              <div key={f.key} className="field">
-                <label className="field-label" htmlFor={`sec-${f.key}`}>
-                  {f.label}
+            {connecting.multi && (
+              <div className="field">
+                <label className="field-label" htmlFor="conn-name">
+                  Name this feed
                 </label>
                 <input
-                  id={`sec-${f.key}`}
-                  type={f.type ?? "text"}
+                  id="conn-name"
                   className="input"
-                  value={secrets[f.key] ?? ""}
-                  onChange={(e) =>
-                    setSecrets((s) => ({ ...s, [f.key]: e.target.value }))
-                  }
+                  value={displayName}
+                  autoFocus
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="e.g. CS 0410"
                 />
               </div>
-            ))}
+            )}
+            {!demo &&
+              SECRET_FIELDS[connecting.id].map((f) => (
+                <div key={f.key} className="field">
+                  <label className="field-label" htmlFor={`sec-${f.key}`}>
+                    {f.label}
+                  </label>
+                  <input
+                    id={`sec-${f.key}`}
+                    type={f.type ?? "text"}
+                    className="input"
+                    value={secrets[f.key] ?? ""}
+                    onChange={(e) =>
+                      setSecrets((s) => ({ ...s, [f.key]: e.target.value }))
+                    }
+                  />
+                </div>
+              ))}
+            {demo && connecting.multi && (
+              <p className="text-sm text-content-muted mt-0 mb-4">
+                Demo mode: this connection will load sample course data. In live
+                mode you'd paste the {SECRET_FIELDS[connecting.id][0].label.toLowerCase()}{" "}
+                here.
+              </p>
+            )}
             <div className="flex justify-end gap-2.5">
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => {
-                  setConnecting(null);
-                  setSecrets({});
-                }}
-              >
+              <button type="button" className="btn btn-ghost" onClick={closeModal}>
                 Cancel
               </button>
               <button type="submit" className="btn btn-primary" disabled={connect.isPending}>

@@ -106,6 +106,55 @@ def test_gradescope_not_connectable_in_live_mode(client, auth_headers, monkeypat
     assert "gradescope" not in [p["id"] for p in providers]
 
 
+def test_multiple_course_feeds_coexist(client, auth_headers):
+    """Two ICS connections (e.g. two course websites) must not overwrite each other."""
+    a = client.post(
+        "/api/integrations/connections",
+        json={"provider": "ics", "display_name": "CS 0410"},
+        headers=auth_headers,
+    ).json()
+    b = client.post(
+        "/api/integrations/connections",
+        json={"provider": "ics", "display_name": "CS 0220"},
+        headers=auth_headers,
+    ).json()
+    assert a["id"] != b["id"]  # a second feed adds a connection, not an upsert
+
+    conns = _connections(client, auth_headers)
+    assert sorted(c["display_name"] for c in conns) == ["CS 0220", "CS 0410"]
+    assert all(c["sync_status"] == "ok" for c in conns)
+
+    # Both feeds contributed items, even though demo feeds share external ids.
+    items = client.get("/api/items?source=ics", headers=auth_headers).json()["items"]
+    by_conn = {i["connection_id"] for i in items}
+    assert by_conn == {a["id"], b["id"]}
+
+    # Disconnecting one course removes only its items.
+    client.delete(f"/api/integrations/connections/{a['id']}", headers=auth_headers)
+    items = client.get("/api/items?source=ics", headers=auth_headers).json()["items"]
+    assert {i["connection_id"] for i in items} == {b["id"]}
+
+
+def test_single_account_provider_still_upserts(client, auth_headers):
+    first = _connect(client, auth_headers, "canvas").json()
+    second = _connect(client, auth_headers, "canvas").json()
+    assert first["id"] == second["id"]  # Canvas stays one connection per account
+    # Re-connecting didn't duplicate the synced items.
+    items = client.get("/api/items?source=canvas", headers=auth_headers).json()
+    external_ids = [i["external_id"] for i in items["items"]]
+    assert len(external_ids) == len(set(external_ids))
+
+
+def test_disconnect_preserves_manual_items(client, auth_headers):
+    conn = _connect(client, auth_headers, "canvas").json()
+    client.post(
+        "/api/items", json={"title": "My own task"}, headers=auth_headers
+    )
+    client.delete(f"/api/integrations/connections/{conn['id']}", headers=auth_headers)
+    page = client.get("/api/items", headers=auth_headers).json()
+    assert [i["title"] for i in page["items"]] == ["My own task"]
+
+
 def test_user_edits_survive_resync(client, auth_headers):
     _connect(client, auth_headers, "canvas")
     items = client.get("/api/items?source=canvas", headers=auth_headers).json()["items"]

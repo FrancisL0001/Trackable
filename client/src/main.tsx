@@ -6,6 +6,7 @@ import "./index.css";
 import { App } from "./App";
 import { AuthProvider } from "./auth/AuthContext";
 import { ThemeProvider } from "./theme/ThemeContext";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ToastProvider } from "./components/Toast";
 import { Analytics } from "@vercel/analytics/react"
 
@@ -19,14 +20,16 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <ToastProvider>
-          <AuthProvider>
-            <BrowserRouter>
-              <App />
-              <Analytics />
-            </BrowserRouter>
-          </AuthProvider>
-        </ToastProvider>
+        <ErrorBoundary>
+          <ToastProvider>
+            <AuthProvider>
+              <BrowserRouter>
+                <App />
+                <Analytics />
+              </BrowserRouter>
+            </AuthProvider>
+          </ToastProvider>
+        </ErrorBoundary>
       </ThemeProvider>
     </QueryClientProvider>
   </StrictMode>

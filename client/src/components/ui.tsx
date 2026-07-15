@@ -79,15 +79,6 @@ export function PageHeader({
   );
 }
 
-export function ErrorState({ message }: { message?: string }) {
-  return (
-    <div className="notice notice-danger" role="alert">
-      <Icon name="alert" size={18} className="shrink-0 mt-0.5" />
-      <span>{message ?? "Something went wrong. Please try again."}</span>
-    </div>
-  );
-}
-
 export function SectionTitle({
   icon,
   children,

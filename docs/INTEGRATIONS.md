@@ -66,10 +66,18 @@ DNS + IP check runs again at sync time.
 - **Workaround:** if your course exposes a Gradescope ICS feed, import it via the ICS
   provider.
 
-### Course websites (ICS)
+### Course websites (ICS) — multiple feeds supported
 - **Real mode:** downloads and parses any iCalendar (`.ics`) feed.
 - **Secrets:** `url` (required).
 - Works with most LMS/course-website calendar exports.
+- **Multi-connection:** add one ICS connection per course and name it (e.g.
+  "CS 0410", "CS 0220"). Feeds are isolated — each connection owns the items it
+  synced (`Item.connection_id`), so identical event UIDs across feeds never
+  collide, and disconnecting a course removes only that course's items (manual
+  items are always kept). Google Calendar is also multi-capable; Canvas and
+  Gradescope remain one connection per account (re-connecting updates
+  credentials instead of duplicating). The `/providers` endpoint reports this
+  as the `multi` capability.
 
 ## Field ownership: sync vs. user edits
 Synced items mix provider-owned fields (`title`, `description`, `kind`, `course`,
@@ -77,6 +85,28 @@ Synced items mix provider-owned fields (`title`, `description`, `kind`, `course`
 `completed_at`). When a user edits a provider-owned field on a synced item, that field
 is recorded in `Item.user_edited_fields` and **preserved on every future sync** — the
 provider's version no longer overwrites it. User-owned fields are never touched by sync.
+
+### Course websites without any feed (AI import)
+- **For pages that just list assignments in HTML** (common for CS course sites):
+  connect the "Course website" provider with the assignments page URL, one
+  connection per course.
+- **Secrets:** `url` (required).
+- **How it works:** the page is fetched through the SSRF guard, stripped to
+  text, and an LLM extracts `title / due date / kind / link` into normal items.
+  The page text is hashed, so the model only runs when the page actually
+  changes; item ids derive from normalized titles, so re-extraction updates
+  items (and your edits/completions survive) instead of duplicating them.
+- **Model configuration (server-side, pick one):**
+  - `LLM_BASE_URL` + `LLM_MODEL` — any OpenAI-compatible endpoint. A local
+    [Ollama](https://ollama.com) works with no API key:
+    `LLM_BASE_URL=http://localhost:11434/v1`, `LLM_MODEL=qwen2.5:7b`.
+  - `ANTHROPIC_API_KEY` — Anthropic's API (used when `LLM_BASE_URL` is unset).
+  - Neither set → the provider is demo-only and hidden in live mode.
+- **Honesty notes:** extraction is best-effort; every item links back to the
+  source page for one-click verification, and model/parse failures surface as
+  a failed sync, never as silently missing assignments. A deployed backend
+  (e.g. Railway) cannot reach an Ollama on your laptop — use a hosted endpoint
+  there, or run the backend locally.
 
 ## Adding a new provider
 1. Create `server/app/integrations/<name>.py` subclassing `Integration`.

@@ -38,6 +38,8 @@ class ProviderInfo(BaseModel):
     label: str
     description: str
     live_supported: bool
+    # Whether a user can hold several connections of this provider (per-course feeds).
+    multi: bool
     note: str
 
 

@@ -43,6 +43,13 @@ class Integration(abc.ABC):
         # user instead of being silently reported as a full sync.
         self.partial = False
         self.partial_reason = ""
+        # Content-hash change detection (used by providers that fetch a document,
+        # e.g. web_page). The sync service injects previous_hash before fetching
+        # and persists content_hash after. unchanged=True means fetch_items
+        # skipped work because the source did not change; existing items stand.
+        self.previous_hash: str = ""
+        self.content_hash: str = ""
+        self.unchanged = False
 
     @abc.abstractmethod
     def fetch_items(self) -> list[NormalizedItem]:

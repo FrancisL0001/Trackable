@@ -1,5 +1,6 @@
 // Route table with auth gating.
 import { Navigate, Route, Routes } from "react-router-dom";
+import { ErrorPage, errorKind } from "./components/ErrorPage";
 import { Layout } from "./components/Layout";
 import { CenterSpinner } from "./components/ui";
 import { useAuth } from "./auth/AuthContext";
@@ -14,9 +15,21 @@ import { Integrations } from "./pages/Integrations";
 import { NotFound } from "./pages/NotFound";
 
 export function App() {
-  const { user, loading } = useAuth();
+  const { user, loading, bootError } = useAuth();
 
   if (loading) return <CenterSpinner label="Loading Trackable…" />;
+
+  // Session restore failed because the server is down/erroring (not bad
+  // credentials): show a server-down screen instead of bouncing to login.
+  if (bootError) {
+    return (
+      <ErrorPage
+        fullScreen
+        kind={errorKind(bootError)}
+        onRetry={() => window.location.reload()}
+      />
+    );
+  }
 
   if (!user) {
     return (

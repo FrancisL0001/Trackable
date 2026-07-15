@@ -40,11 +40,17 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
   const token = getToken();
   if (token && !opts.anonymous) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method: opts.method ?? "GET",
-    headers,
-    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      method: opts.method ?? "GET",
+      headers,
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+    });
+  } catch {
+    // Network failure (server down, no connection). Status 0 = "unreachable".
+    throw new ApiError(0, "Cannot reach the server.");
+  }
 
   if (res.status === 401 && !opts.anonymous) {
     onUnauthorized?.();

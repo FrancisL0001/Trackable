@@ -39,6 +39,7 @@ def list_providers() -> ProvidersOut:
                 label=c.label,
                 description=c.description,
                 live_supported=c.live_supported,
+                multi=c.multi,
                 note=c.note,
             )
             for c in connectable_providers()

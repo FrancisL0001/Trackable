@@ -27,6 +27,7 @@ export type IconName =
   | "chevron-left"
   | "chevron-right"
   | "search"
+  | "offline"
   | "sparkles"
   | "settings"
   | "inbox";
@@ -147,6 +148,15 @@ const PATHS: Record<IconName, JSX.Element> = {
     <>
       <circle cx="11" cy="11" r="7" />
       <path d="M21 21l-4.3-4.3" />
+    </>
+  ),
+  offline: (
+    <>
+      <path d="M1 1l22 22" />
+      <path d="M8.5 16.4a6 6 0 0 1 7 0" />
+      <path d="M5 12.5a10.9 10.9 0 0 1 3.2-1.9M16.7 11.6a10.9 10.9 0 0 1 2.3 1.7" />
+      <path d="M10.6 5.1A15.9 15.9 0 0 1 22.6 9M1.4 9a15.9 15.9 0 0 1 4.8-2.9" />
+      <path d="M12 20h.01" />
     </>
   ),
   sparkles: (

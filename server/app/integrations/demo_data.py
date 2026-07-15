@@ -146,9 +146,35 @@ def ics_items() -> list[NormalizedItem]:
     ]
 
 
+def web_page_items() -> list[NormalizedItem]:
+    return [
+        NormalizedItem(
+            external_id="web-demo-1",
+            title="Homework 2: Regular Languages",
+            kind=ItemKind.ASSIGNMENT,
+            course="CS 0220",
+            description="Extracted from the course website assignments page.",
+            url="https://example.edu/cs0220/assignments",
+            due_at=_at(4),
+            priority=ItemPriority.MEDIUM,
+        ),
+        NormalizedItem(
+            external_id="web-demo-2",
+            title="Project 1 checkpoint",
+            kind=ItemKind.DEADLINE,
+            course="CS 0220",
+            description="Extracted from the course website assignments page.",
+            url="https://example.edu/cs0220/projects",
+            due_at=_at(9),
+            priority=ItemPriority.HIGH,
+        ),
+    ]
+
+
 DEMO_BY_PROVIDER = {
     ProviderType.CANVAS: canvas_items,
     ProviderType.GRADESCOPE: gradescope_items,
     ProviderType.GOOGLE_CALENDAR: google_calendar_items,
     ProviderType.ICS: ics_items,
+    ProviderType.WEB_PAGE: web_page_items,
 }
