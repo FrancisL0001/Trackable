@@ -6,6 +6,81 @@ import { Icon, type IconName } from "../components/Icon";
 import { useAuth } from "../auth/AuthContext";
 import { ApiError } from "../api/client";
 
+type AuthMode = "login" | "register";
+type AuthAlertAction = "register" | "login" | "retry";
+
+interface AuthAlert {
+  tone: "danger" | "muted";
+  icon: IconName;
+  title: string;
+  body: string;
+  action?: { label: string; kind: AuthAlertAction };
+}
+
+// Turn a thrown error into friendly, actionable guidance. Kept deliberately
+// generic for failed credentials so we never reveal whether an email exists.
+function describeAuthError(err: unknown, mode: AuthMode): AuthAlert {
+  if (err instanceof ApiError) {
+    if (err.status === 0) {
+      return {
+        tone: "muted",
+        icon: "offline",
+        title: "Can't reach the server",
+        body: "Check your internet connection and try again.",
+        action: { label: "Try again", kind: "retry" },
+      };
+    }
+    if (err.status === 429) {
+      return {
+        tone: "muted",
+        icon: "clock",
+        title: "Too many attempts",
+        body: "Please wait a moment before trying again.",
+      };
+    }
+    if (err.status >= 500) {
+      return {
+        tone: "danger",
+        icon: "alert",
+        title: "Something went wrong",
+        body: "That's on our end — please try again in a moment.",
+        action: { label: "Try again", kind: "retry" },
+      };
+    }
+    if (mode === "login" && err.status === 401) {
+      return {
+        tone: "danger",
+        icon: "search",
+        title: "We couldn't sign you in",
+        body: "That email and password don't match an account. Double-check them, or create a new account.",
+        action: { label: "Create an account", kind: "register" },
+      };
+    }
+    if (mode === "register" && err.status === 409) {
+      return {
+        tone: "danger",
+        icon: "alert",
+        title: "You already have an account",
+        body: "An account with this email already exists. Try logging in instead.",
+        action: { label: "Log in instead", kind: "login" },
+      };
+    }
+    return {
+      tone: "danger",
+      icon: "alert",
+      title: "Something went wrong",
+      body: err.message,
+    };
+  }
+  return {
+    tone: "muted",
+    icon: "offline",
+    title: "Can't reach the server",
+    body: "Check your internet connection and try again.",
+    action: { label: "Try again", kind: "retry" },
+  };
+}
+
 const FEATURES: { icon: IconName; title: string; body: string }[] = [
   {
     icon: "plug",
@@ -27,18 +102,27 @@ const FEATURES: { icon: IconName; title: string; body: string }[] = [
 export function Login() {
   const { login, register } = useAuth();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AuthAlert | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
+  const switchMode = (next: AuthMode) => {
+    setMode(next);
+    setError(null);
+  };
+
+  const runAuth = async () => {
     setError(null);
     if (mode === "register" && password.length < 8) {
-      setError("Password must be at least 8 characters.");
+      setError({
+        tone: "danger",
+        icon: "alert",
+        title: "Password too short",
+        body: "Choose a password with at least 8 characters.",
+      });
       return;
     }
     setBusy(true);
@@ -47,13 +131,19 @@ export function Login() {
       else await register(email, password, fullName);
       navigate("/");
     } catch (err) {
-      const msg =
-        err instanceof ApiError
-          ? err.message
-          : "Could not connect. Is the backend running?";
-      setError(msg);
+      setError(describeAuthError(err, mode));
       setBusy(false);
     }
+  };
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    void runAuth();
+  };
+
+  const handleAlertAction = (kind: AuthAlertAction) => {
+    if (kind === "retry") void runAuth();
+    else switchMode(kind);
   };
 
   return (
@@ -111,8 +201,31 @@ export function Login() {
             </p>
 
             {error && (
-              <div className="notice notice-danger mb-4" role="alert">
-                {error}
+              <div
+                className={`auth-alert auth-alert-${error.tone} mb-4`}
+                role="alert"
+              >
+                <span className="auth-alert-icon">
+                  <Icon name={error.icon} size={17} />
+                </span>
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm m-0 text-content">
+                    {error.title}
+                  </p>
+                  <p className="text-[0.85rem] text-content-muted mt-0.5 mb-0">
+                    {error.body}
+                  </p>
+                  {error.action && (
+                    <button
+                      type="button"
+                      className="auth-alert-action"
+                      onClick={() => handleAlertAction(error.action!.kind)}
+                    >
+                      {error.action.label}
+                      <Icon name="chevron-right" size={14} />
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 
@@ -186,10 +299,9 @@ export function Login() {
                 : "Already have an account? "}
               <button
                 className="text-primary-strong font-semibold bg-transparent border-0 cursor-pointer p-0 hover:underline"
-                onClick={() => {
-                  setMode(mode === "login" ? "register" : "login");
-                  setError(null);
-                }}
+                onClick={() =>
+                  switchMode(mode === "login" ? "register" : "login")
+                }
               >
                 {mode === "login" ? "Create one" : "Log in"}
               </button>
