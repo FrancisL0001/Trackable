@@ -5,9 +5,9 @@ import { useDeferredValue, useMemo, useState } from "react";
 import { Icon } from "../components/Icon";
 import { ItemList } from "../components/ItemCard";
 import { ItemForm } from "../components/ItemForm";
+import { QueryError } from "../components/ErrorPage";
 import {
   EmptyState,
-  ErrorState,
   PageHeader,
   PageSkeleton,
   SectionTitle,
@@ -33,7 +33,7 @@ export function ItemsPage({
 }: ItemsPageProps) {
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search.trim());
-  const { data, isLoading, isError } = useItems({
+  const { data, isLoading, isError, error, refetch } = useItems({
     kinds: kinds.join(","),
     search: deferredSearch || undefined,
   });
@@ -51,7 +51,7 @@ export function ItemsPage({
   }, [data]);
 
   if (isLoading) return <PageSkeleton />;
-  if (isError) return <ErrorState />;
+  if (isError) return <QueryError error={error} onRetry={() => refetch()} />;
 
   const openForm = (item: Item | null) => {
     setEditing(item);

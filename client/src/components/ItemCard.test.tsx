@@ -19,6 +19,7 @@ function makeItem(overrides: Partial<Item> = {}): Item {
     completed_at: null,
     source: "canvas",
     external_id: "canvas-1",
+    connection_id: 1,
     user_edited_fields: [],
     created_at: "2026-06-01T00:00:00Z",
     updated_at: "2026-06-01T00:00:00Z",

@@ -2,7 +2,8 @@
 // Fetches only the visible month's window from the API (not the whole item list).
 import { useMemo, useState } from "react";
 import { Icon } from "../components/Icon";
-import { EmptyState, ErrorState, PageHeader, PageSkeleton } from "../components/ui";
+import { QueryError } from "../components/ErrorPage";
+import { EmptyState, PageHeader, PageSkeleton } from "../components/ui";
 import { ItemList } from "../components/ItemCard";
 import { useItems, useItemMutations } from "../hooks/items";
 import { parseDate } from "../utils/date";
@@ -43,7 +44,7 @@ export function Calendar() {
   const windowStart = new Date(cells[0]);
   const windowEnd = new Date(cells[41]);
   windowEnd.setHours(23, 59, 59, 999);
-  const { data, isLoading, isError } = useItems({
+  const { data, isLoading, isError, error, refetch } = useItems({
     due_after: windowStart.toISOString(),
     due_before: windowEnd.toISOString(),
     limit: "500",
@@ -65,7 +66,7 @@ export function Calendar() {
   }, [data]);
 
   if (isLoading) return <PageSkeleton />;
-  if (isError) return <ErrorState />;
+  if (isError) return <QueryError error={error} onRetry={() => refetch()} />;
 
   const dayItems = (d: Date) =>
     byDay.get(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`) ?? [];

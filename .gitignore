@@ -18,6 +18,8 @@ client/node_modules/
 client/dist/
 node_modules/
 *.local
+*.tsbuildinfo
+.vite/
 
 # Env & secrets
 .env

@@ -26,7 +26,7 @@ All `/api/*` endpoints except auth require a `Authorization: Bearer <token>` hea
 |---|---|---|
 | GET | `/api/integrations/providers` | Provider capability metadata (`label`, `live_supported`, `note`) + demo flag + sync interval |
 | GET | `/api/integrations/connections` | List connections with sync state (`sync_status`, `last_synced_at`, `next_sync_at`); secrets never returned |
-| POST | `/api/integrations/connections` | `{provider, secrets?}` (upsert). Queues an initial background sync |
+| POST | `/api/integrations/connections` | `{provider, display_name?, secrets?}`. Multi-capable providers (ICS, Google Calendar) get a new named connection each time; single-account providers (Canvas) upsert. Queues an initial background sync |
 | POST | `/api/integrations/connections/{id}/active?active=false` | Enable/disable |
 | DELETE | `/api/integrations/connections/{id}` | Disconnect |
 | POST | `/api/integrations/sync` | **202**: queues a background sync of all active connections (rate limited). Poll `GET /connections` for progress |

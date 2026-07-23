@@ -9,13 +9,15 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { getToken, setToken, setUnauthorizedHandler } from "../api/client";
+import { ApiError, getToken, setToken, setUnauthorizedHandler } from "../api/client";
 import { authApi } from "../api/endpoints";
 import type { User, UserUpdate } from "../api/types";
 
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
+  /** Set when session restore failed for a non-auth reason (server down/5xx). */
+  bootError: Error | null;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, fullName: string) => Promise<void>;
   updateProfile: (input: UserUpdate) => Promise<void>;
@@ -27,6 +29,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [bootError, setBootError] = useState<Error | null>(null);
 
   const logout = useCallback(() => {
     setToken(null);
@@ -45,8 +48,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const me = await authApi.me();
         if (active) setUser(me);
-      } catch {
-        if (active) logout();
+      } catch (err) {
+        if (!active) return;
+        // Only a rejected credential means the session is invalid. A server
+        // that's down or erroring should show a server-down screen, not
+        // silently log the user out.
+        if (err instanceof ApiError && err.status >= 400 && err.status < 500) {
+          logout();
+        } else {
+          setBootError(err instanceof Error ? err : new Error(String(err)));
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -78,8 +89,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, loading, login, register, updateProfile, logout }),
-    [user, loading, login, register, updateProfile, logout]
+    () => ({ user, loading, bootError, login, register, updateProfile, logout }),
+    [user, loading, bootError, login, register, updateProfile, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

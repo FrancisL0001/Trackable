@@ -2,16 +2,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { dashboardApi } from "../api/endpoints";
 import { Icon } from "../components/Icon";
-import { ErrorState, PageHeader, PageSkeleton } from "../components/ui";
+import { QueryError } from "../components/ErrorPage";
+import { PageHeader, PageSkeleton } from "../components/ui";
 
 export function StudyTips() {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["study-tips"],
     queryFn: dashboardApi.studyTips,
   });
 
   if (isLoading) return <PageSkeleton />;
-  if (isError || !data) return <ErrorState />;
+  if (isError || !data) return <QueryError error={error} onRetry={() => refetch()} />;
 
   return (
     <div>

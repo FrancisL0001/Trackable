@@ -30,8 +30,13 @@ def _utcnow() -> datetime:
 class Item(Base):
     __tablename__ = "items"
     __table_args__ = (
-        # Idempotent sync: one row per (user, source, external id).
-        UniqueConstraint("owner_id", "source", "external_id", name="uq_item_source"),
+        # Idempotent sync: one row per (user, connection, external id). Scoping by
+        # connection lets several feeds of the same provider coexist (e.g. two
+        # course-website ICS calendars). Manual items have connection_id NULL and
+        # stay unique via their generated external_id.
+        UniqueConstraint(
+            "owner_id", "connection_id", "external_id", name="uq_item_connection_external"
+        ),
         Index("ix_items_owner_due", "owner_id", "due_at"),
     )
 
@@ -67,6 +72,11 @@ class Item(Base):
         String(20), default=ProviderType.MANUAL, nullable=False
     )
     external_id: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    # The connection that synced this item (NULL for manual items). Disconnecting
+    # a feed removes its items (explicit delete in the service + DB cascade).
+    connection_id: Mapped[int | None] = mapped_column(
+        ForeignKey("connections.id", ondelete="CASCADE"), nullable=True, index=True
+    )
 
     # Provider-owned fields the user has manually edited on a synced item.
     # Sync preserves these instead of overwriting them with provider data.

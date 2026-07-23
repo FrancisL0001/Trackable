@@ -43,10 +43,16 @@ export const PROVIDER_META: Record<
     tone: "bg-success-soft text-success",
   },
   ics: {
-    label: "Calendar feed (ICS)",
+    label: "Course feed (ICS)",
     description: "Import any calendar feed from a course website or portal.",
     monogram: "iC",
     tone: "bg-accent-soft text-accent",
+  },
+  web_page: {
+    label: "Course website (AI import)",
+    description: "Extract deadlines from an assignments page with no feed.",
+    monogram: "Ai",
+    tone: "bg-warning-soft text-warning",
   },
   manual: {
     label: "Manual",

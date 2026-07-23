@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -19,9 +19,10 @@ def _utcnow() -> datetime:
 
 class Connection(Base):
     __tablename__ = "connections"
-    __table_args__ = (
-        UniqueConstraint("owner_id", "provider", name="uq_connection_provider"),
-    )
+    # No (owner, provider) uniqueness: providers with the `multi` capability
+    # (ICS feeds, Google calendars) support several connections per user. The
+    # one-per-user rule for single-account providers (Canvas, Gradescope) is
+    # enforced in connection_service instead.
 
     id: Mapped[int] = mapped_column(primary_key=True)
     owner_id: Mapped[int] = mapped_column(
@@ -45,6 +46,9 @@ class Connection(Base):
         DateTime(timezone=True), nullable=True
     )
     last_sync_status: Mapped[str] = mapped_column(String(500), nullable=False, default="")
+    # SHA-256 of the last fetched document (web_page provider): lets sync skip
+    # the extraction model when the page hasn't changed.
+    last_content_hash: Mapped[str] = mapped_column(String(64), nullable=False, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     owner: Mapped["User"] = relationship(back_populates="connections")  # noqa: F821

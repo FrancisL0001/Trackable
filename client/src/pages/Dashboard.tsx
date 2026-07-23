@@ -6,9 +6,9 @@ import { dashboardApi } from "../api/endpoints";
 import { Icon, type IconName } from "../components/Icon";
 import { ItemList } from "../components/ItemCard";
 import { ItemForm } from "../components/ItemForm";
+import { QueryError } from "../components/ErrorPage";
 import {
   EmptyState,
-  ErrorState,
   PageHeader,
   PageSkeleton,
   SectionTitle,
@@ -91,7 +91,7 @@ function SoonWindowSelect() {
 
 export function Dashboard() {
   const { user } = useAuth();
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["dashboard"],
     queryFn: dashboardApi.dashboard,
   });
@@ -100,7 +100,7 @@ export function Dashboard() {
   const [showForm, setShowForm] = useState(false);
 
   if (isLoading) return <PageSkeleton />;
-  if (isError || !data) return <ErrorState />;
+  if (isError || !data) return <QueryError error={error} onRetry={() => refetch()} />;
 
   const { stats, reminders } = data;
   const firstName = (user?.full_name || "there").split(" ")[0];

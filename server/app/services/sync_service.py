@@ -22,7 +22,7 @@ from app.core.urls import sanitize_web_url
 from app.integrations.base import NormalizedItem
 from app.integrations.registry import build_integration
 from app.models import Connection, Item
-from app.models.enums import ItemStatus, ProviderType
+from app.models.enums import ItemStatus
 from app.services import connection_service
 
 logger = logging.getLogger("trackable.sync")
@@ -64,13 +64,20 @@ def _apply_provider_fields(item: Item, n: NormalizedItem) -> None:
 
 
 def _upsert_batch(
-    db: Session, owner_id: int, source: ProviderType, normalized: list[NormalizedItem]
+    db: Session, connection: Connection, normalized: list[NormalizedItem]
 ) -> tuple[int, int]:
-    """Insert/update all items for one connection with a single existence query."""
+    """Insert/update all items for one connection with a single existence query.
+
+    Scoped by connection (not just provider) so several feeds of the same
+    provider — e.g. one ICS calendar per course — never overwrite each other.
+    """
     existing_by_external_id: dict[str, Item] = {
         item.external_id: item
         for item in db.scalars(
-            select(Item).where(Item.owner_id == owner_id, Item.source == source)
+            select(Item).where(
+                Item.owner_id == connection.owner_id,
+                Item.connection_id == connection.id,
+            )
         )
     }
     created = updated = 0
@@ -85,8 +92,9 @@ def _upsert_batch(
             updated += 1
             continue
         item = Item(
-            owner_id=owner_id,
-            source=source,
+            owner_id=connection.owner_id,
+            source=connection.provider,
+            connection_id=connection.id,
             external_id=n.external_id,
             status=ItemStatus.TODO,
             priority=n.priority,
@@ -113,8 +121,26 @@ def sync_connection(db: Session, connection: Connection) -> dict:
     try:
         secrets = connection_service.decrypt_secrets(connection)
         integration = build_integration(connection.provider, secrets)
+        # Content-hash change detection (web_page): skip extraction on no change.
+        integration.previous_hash = connection.last_content_hash
         items = integration.fetch_items()
-        created, updated = _upsert_batch(db, owner_id, connection.provider, items)
+        if integration.content_hash:
+            connection.last_content_hash = integration.content_hash
+        if integration.unchanged:
+            connection.sync_status = "ok"
+            connection.last_sync_error = ""
+            connection.last_sync_status = "ok: source unchanged, items kept"
+            connection.last_synced_at = utcnow()
+            _schedule_next(connection)
+            db.commit()
+            return {
+                "provider": connection.provider,
+                "created": 0,
+                "updated": 0,
+                "total": 0,
+                "status": "ok",
+            }
+        created, updated = _upsert_batch(db, connection, items)
         total = len(items)
         if integration.partial:
             connection.sync_status = "partial"

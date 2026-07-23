@@ -3,14 +3,14 @@ from __future__ import annotations
 
 import json
 
-from sqlalchemy import select
+from sqlalchemy import delete as sa_delete, func, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import IntegrationError, NotFoundError, TrackableError
 from app.core.security import decrypt_secret, encrypt_secret
 from app.core.ssrf import validate_url_scheme
 from app.integrations.registry import PROVIDER_CAPABILITIES, is_connectable
-from app.models import Connection
+from app.models import Connection, Item
 from app.models.enums import ProviderType
 from app.schemas.connection import ConnectionCreate
 
@@ -20,6 +20,7 @@ _URL_SECRET_KEYS: dict[ProviderType, tuple[str, ...]] = {
     ProviderType.ICS: ("url",),
     ProviderType.GOOGLE_CALENDAR: ("ical_url",),
     ProviderType.CANVAS: ("base_url",),
+    ProviderType.WEB_PAGE: ("url",),
 }
 
 
@@ -65,8 +66,23 @@ def get(db: Session, owner_id: int, connection_id: int) -> Connection:
     return conn
 
 
+def _default_display_name(db: Session, owner_id: int, provider: ProviderType) -> str:
+    cap = PROVIDER_CAPABILITIES.get(provider)
+    base = cap.label if cap else provider.value.replace("_", " ").title()
+    existing = db.scalar(
+        select(func.count())
+        .select_from(Connection)
+        .where(Connection.owner_id == owner_id, Connection.provider == provider)
+    )
+    return f"{base} {existing + 1}" if existing else base
+
+
 def upsert(db: Session, owner_id: int, data: ConnectionCreate) -> Connection:
-    """Create a connection or update its secrets if the provider already exists."""
+    """Create a connection; for single-account providers, update the existing one.
+
+    Multi-capable providers (per-course ICS feeds, Google calendars) always get a
+    new connection so a user can track several courses side by side.
+    """
     if not is_connectable(data.provider):
         cap = PROVIDER_CAPABILITIES.get(data.provider)
         note = f" {cap.note}" if cap and cap.note else ""
@@ -75,27 +91,30 @@ def upsert(db: Session, owner_id: int, data: ConnectionCreate) -> Connection:
         )
     if data.secrets:
         _validate_secret_urls(data.provider, data.secrets)
-    existing = db.scalar(
-        select(Connection).where(
-            Connection.owner_id == owner_id, Connection.provider == data.provider
+
+    cap = PROVIDER_CAPABILITIES.get(data.provider)
+    if not (cap and cap.multi):
+        existing = db.scalar(
+            select(Connection).where(
+                Connection.owner_id == owner_id, Connection.provider == data.provider
+            )
         )
-    )
-    if existing:
-        existing.display_name = data.display_name or existing.display_name
-        if data.secrets:
-            existing.encrypted_secrets = _encrypt(data.secrets)
-        existing.is_active = True
-        # Fresh credentials deserve a fresh sync attempt.
-        existing.sync_status = "idle"
-        existing.next_sync_at = None
-        db.commit()
-        db.refresh(existing)
-        return existing
+        if existing:
+            existing.display_name = data.display_name or existing.display_name
+            if data.secrets:
+                existing.encrypted_secrets = _encrypt(data.secrets)
+            existing.is_active = True
+            # Fresh credentials deserve a fresh sync attempt.
+            existing.sync_status = "idle"
+            existing.next_sync_at = None
+            db.commit()
+            db.refresh(existing)
+            return existing
 
     conn = Connection(
         owner_id=owner_id,
         provider=data.provider,
-        display_name=data.display_name or data.provider.value.replace("_", " ").title(),
+        display_name=data.display_name or _default_display_name(db, owner_id, data.provider),
         encrypted_secrets=_encrypt(data.secrets),
     )
     db.add(conn)
@@ -113,6 +132,17 @@ def set_active(db: Session, owner_id: int, connection_id: int, active: bool) -> 
 
 
 def delete(db: Session, owner_id: int, connection_id: int) -> None:
+    """Disconnect a feed and remove the items it synced.
+
+    Explicit delete (rather than relying on the DB cascade) so SQLite works
+    without the foreign_keys pragma. Manual items (connection_id NULL) and other
+    connections' items are untouched.
+    """
     conn = get(db, owner_id, connection_id)
+    db.execute(
+        sa_delete(Item).where(
+            Item.owner_id == owner_id, Item.connection_id == conn.id
+        )
+    )
     db.delete(conn)
     db.commit()

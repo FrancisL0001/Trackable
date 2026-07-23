@@ -66,6 +66,19 @@ class Settings(BaseSettings):
     google_client_id: str = ""
     google_client_secret: str = ""
 
+    # --- LLM extraction (course-website provider) ---
+    # Backend-agnostic: point LLM_BASE_URL at any OpenAI-compatible endpoint —
+    # Ollama (http://localhost:11434/v1), LM Studio, vLLM, or a hosted provider.
+    # Alternatively set ANTHROPIC_API_KEY to use the Anthropic API instead.
+    # If neither is set, the course-website provider is demo-only.
+    llm_base_url: str = ""
+    llm_api_key: str = ""  # optional; local servers like Ollama don't need one
+    llm_model: str = ""  # e.g. "qwen2.5:3b" (Ollama) or an Anthropic model id
+    anthropic_api_key: str = ""
+    # Page-text budget sent to the model. The default fits Ollama's small
+    # default context window; raise it for hosted/large-context models.
+    llm_max_page_chars: int = 6000
+
     @property
     def cors_origins(self) -> list[str]:
         origins = [self.frontend_origin]
