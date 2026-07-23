@@ -34,5 +34,5 @@ createRoot(document.getElementById("root")!).render(
         </ErrorBoundary>
       </ThemeProvider>
     </QueryClientProvider>
-  </StrictMode>
+  </StrictMode>,
 );
